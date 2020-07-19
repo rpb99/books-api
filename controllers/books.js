@@ -1,6 +1,6 @@
 const pool = require('../db');
 const { errorResponse } = require('../middleware');
-const authors = require('./authors');
+const path = require('path');
 
 module.exports = {
   // @desc      Get books
@@ -34,11 +34,43 @@ module.exports = {
   // @route     POST /api/v1/books
   // @access    Private
   async addBook(req, res, next) {
-    const query =
-      'INSERT INTO books (title, description, image, total_pages, isbn, user_id, published_date) VALUES ($1, $2, $3, $4, $5, $6, (SELECT NOW())) RETURNING *';
+    const { id } = req.params;
+    const queryId = 'SELECT book_id FROM books WHERE book_id = $1';
+    const { rows: book_id } = await pool.query(queryId, [id]);
+
+    const query = `
+      INSERT INTO books 
+        (title, description, image, total_pages, isbn, user_id, published_date) 
+      VALUES 
+        ($1, $2, $3, $4, $5, $6, (SELECT NOW())) 
+      RETURNING *`;
 
     let { title, description, image, total_pages, isbn, user_id } = req.body;
     user_id = req.user.user_id;
+
+    const { file } = req.files;
+
+    // Make sure the image is a photo
+    if (!file.mimetype.startsWith('image')) {
+      return errorResponse('Please upload an image file', 400, res);
+    }
+
+    if (file.size > 3000000) {
+      return errorResponse(
+        `Please upload an image less than 3 Megabyte`,
+        400,
+        res
+      );
+    }
+
+    file.mv(`${process.env.FILE_UPLOAD_PATH}/${file.name}`, async (err) => {
+      if (err) {
+        console.log(err);
+        return errorResponse(`Problem with file upload`, 500, res);
+      }
+    });
+
+    image = file.name;
 
     const { rows: book } = await pool.query(query, [
       title,
@@ -66,10 +98,35 @@ module.exports = {
       return next(errorResponse(`Book not found with id of ${id}`, 404, res));
     }
 
+    let { title, description, image, total_pages, isbn } = req.body;
+
+    const { file } = req.files;
+
     const query =
       'UPDATE books SET title=$1, description=$2, image=$3, total_pages=$4, isbn=$5, published_date=(SELECT NOW()) WHERE book_id = $6 RETURNING *';
 
-    const { title, description, image, total_pages, isbn } = req.body;
+    // Make sure the image is a photo
+    if (!file.mimetype.startsWith('image')) {
+      return errorResponse('Please upload an image file', 400, res);
+    }
+
+    if (file.size > 3000000) {
+      return errorResponse(
+        `Please upload an image less than 3 Megabyte`,
+        400,
+        res
+      );
+    }
+
+    file.mv(`${process.env.FILE_UPLOAD_PATH}/${file.name}`, async (err) => {
+      if (err) {
+        console.log(err);
+        return errorResponse(`Problem with file upload`, 500, res);
+      }
+    });
+
+    image = file.name;
+
     let { rows } = await pool.query(query, [
       title,
       description,
