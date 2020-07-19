@@ -172,7 +172,7 @@ module.exports = {
     const { book_id, author_id } = req.body;
 
     if (!book_id || !author_id) {
-      return errorResponse('Please provide an book and author', 400, res);
+      return errorResponse('Please provide a book and author', 400, res);
     }
 
     const queryStr = `

@@ -10,6 +10,7 @@ const fileUpload = require('express-fileupload');
 const auth = require('./routes/auth');
 const authors = require('./routes/authors');
 const books = require('./routes/books');
+const genres = require('./routes/genres');
 
 const app = express();
 
@@ -27,5 +28,6 @@ app.use(fileUpload());
 app.use('/api/v1/auth', auth);
 app.use('/api/v1/authors', authors);
 app.use('/api/v1/books', books);
+app.use('/api/v1/genres', genres);
 
 module.exports = app;
