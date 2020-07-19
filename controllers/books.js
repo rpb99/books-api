@@ -1,5 +1,6 @@
 const pool = require('../db');
 const { errorResponse } = require('../middleware');
+const authors = require('./authors');
 
 module.exports = {
   // @desc      Get books
@@ -8,6 +9,7 @@ module.exports = {
   async getBooks(req, res, next) {
     const query = 'SELECT * FROM books';
     const { rows } = await pool.query(query);
+
     res.json({ data: rows });
   },
 
@@ -33,12 +35,12 @@ module.exports = {
   // @access    Private
   async addBook(req, res, next) {
     const query =
-      'INSERT INTO books (title, description, image, total_pages, isbn, published_date, user_id) VALUES ($1, $2, $3, $4, $5, (SELECT NOW()), $6) RETURNING *';
+      'INSERT INTO books (title, description, image, total_pages, isbn, user_id, published_date) VALUES ($1, $2, $3, $4, $5, $6, (SELECT NOW())) RETURNING *';
 
-    req.body.user_id = req.user.user_id;
-    const { title, description, image, total_pages, isbn, user_id } = req.body;
+    let { title, description, image, total_pages, isbn, user_id } = req.body;
+    user_id = req.user.user_id;
 
-    let { rows: book } = await pool.query(query, [
+    const { rows: book } = await pool.query(query, [
       title,
       description,
       image,
@@ -50,61 +52,131 @@ module.exports = {
     res.status(201).json({ data: book[0] });
   },
 
-  // @desc      Update publisher
-  // @route     POST /api/v1/publishers/:id
+  // @desc      Update book
+  // @route     PUT /api/v1/book/:id
   // @access    Private
-  async updatePublisher(req, res, next) {
+  async updateBook(req, res, next) {
     const { id } = req.params;
 
-    let {
-      rows: publisher,
-    } = await pool.query('SELECT * FROM publishers WHERE publisher_id = $1', [
-      id,
-    ]);
+    const {
+      rows: book,
+    } = await pool.query('SELECT book_id FROM books WHERE book_id = $1', [id]);
 
-    if (!publisher.length) {
-      return next(
-        errorResponse(`Publisher not found with id of ${id}`, 404, res)
-      );
+    if (!book.length) {
+      return next(errorResponse(`Book not found with id of ${id}`, 404, res));
     }
 
     const query =
-      'UPDATE publishers SET name = $1, created_at = (SELECT NOW()) WHERE publisher_id = $2 RETURNING *';
+      'UPDATE books SET title=$1, description=$2, image=$3, total_pages=$4, isbn=$5, published_date=(SELECT NOW()) WHERE book_id = $6 RETURNING *';
 
-    publisher = await pool.query(query, [req.body.name, id]);
+    const { title, description, image, total_pages, isbn } = req.body;
+    let { rows } = await pool.query(query, [
+      title,
+      description,
+      image,
+      total_pages,
+      isbn,
+      id,
+    ]);
 
     res.json({
       success: true,
-      data: publisher[0],
+      data: rows[0],
     });
   },
 
-  // @desc      Delete publisher
-  // @route     POST /api/v1/publishers
+  // @desc      Delete book
+  // @route     DELETE /api/v1/books
   // @access    Private
-  async deletePublisher(req, res, next) {
-    let {
-      rows: publisher,
-    } = await pool.query('SELECT * FROM publishers WHERE publisher_id = $1', [
-      req.params.id,
-    ]);
+  async deleteBook(req, res, next) {
+    const { id } = req.params;
 
-    if (!publisher.length) {
-      return next(
-        errorResponse(
-          `Publisher not found with id of ${req.params.id}`,
-          404,
-          res
-        )
-      );
-    } else {
-      const query =
-        'DELETE FROM publishers WHERE publisher_id = $1 RETURNING *';
-      const { rows: publisher } = await pool.query(query, [req.params.id]);
-      res.json({
-        success: true,
-        data: {},
-      });
+    const {
+      rows: book,
+    } = await pool.query('SELECT book_id FROM books WHERE book_id = $1', [id]);
+
+    if (!book.length) {
+      return next(errorResponse(`Book not found with id of ${id}`, 404, res));
     }
+
+    const query = 'DELETE FROM books WHERE book_id = $1';
+    await pool.query(query, [id]);
+
+    res.json({
+      success: true,
+      data: {},
+    });
+  },
+
+  // @desc      Create Book author
+  // @route     POST /api/v1/books/authors
+  // @access    Private
+  async bookAuthor(req, res, next) {
+    const { book_id, author_id } = req.body;
+
+    if (!book_id || !author_id) {
+      return errorResponse('Please provide an book and author', 400, res);
+    }
+
+    const queryStr = `
+    SELECT books.book_id, authors.author_id
+    FROM book_authors
+    JOIN books
+        ON books.book_id = book_authors.book_id
+    JOIN authors
+        ON authors.author_id = book_authors.author_id
+      `;
+    const { rows: book_authorsId } = await pool.query(queryStr);
+
+    for (const prop in book_authorsId) {
+      const { book_id, author_id } = book_authorsId[prop];
+      if (book_id === book_id && author_id === author_id) {
+        return errorResponse('The book has same owner', 400, res);
+      }
+    }
+
+    const query = `INSERT INTO book_authors (book_id, author_id, created_at) VALUES ($1, $2, (SELECT NOW())) RETURNING *`;
+    const { rows } = await pool.query(query, [book_id, author_id]);
+
+    res.status(201).json({
+      success: true,
+      data: rows[0],
+    });
+  },
+
+  // @desc      Get all book author
+  // @route     POST /api/v1/books/authors
+  // @access    Private
+  async getBookAuthors(req, res, next) {
+    const query = `
+    SELECT *
+    FROM book_authors
+    JOIN books 
+        ON books.book_id = book_authors.book_id
+    JOIN authors 
+        ON authors.author_id = book_authors.author_id`;
+
+    const { rows } = await pool.query(query);
+
+    res.json({
+      success: true,
+      data: rows,
+    });
+  },
+  // @desc      Delete book author
+  // @route     DELETE /api/v1/books/authors/:book_id/:author_id
+  // @access    Private
+  async deleteBookAuthor(req, res, next) {
+    const query = `
+    DELETE FROM book_authors 
+    WHERE book_id = $1 AND author_id = $2`;
+
+    const { book_id, author_id } = req.params;
+    await pool.query(query, [book_id, author_id]);
+
+    res.json({
+      success: true,
+      data: {},
+    });
   },
 };

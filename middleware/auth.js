@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
+const { errorResponse } = require('../middleware');
 
 // Protect routes
 
@@ -7,11 +8,16 @@ module.exports = {
   async protect(req, res, next) {
     let token;
 
-    if (req.headers.cookie) {
-      // Set token from cookie token in header
-      token = req.headers.cookie.split('token=')[1];
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith('Bearer') //for development with postman token
+    ) {
+      // Set token from Bearer token in header
+      token = req.headers.authorization.split(' ')[1];
     }
-
+    // else if (req.cookies.token) {
+    // token = req.cookies.token; // for production
+    // }
     // Make sure token exists
     if (!token) {
       return next(errorResponse('Not authorized to access this route', 401));
@@ -36,18 +42,13 @@ module.exports = {
   authorize(...roles) {
     return (req, res, next) => {
       if (!roles.includes(req.user.role)) {
-        return next(
-          errorResponse('Not authorized to access this route', 401, res)
+        return errorResponse(
+          `User role ${req.user.role} is not authorized to access this route`,
+          403,
+          res
         );
       }
       next();
     };
   },
-};
-
-const errorResponse = (message, statusCode, res) => {
-  res.status(statusCode).json({
-    success: false,
-    error: message,
-  });
 };

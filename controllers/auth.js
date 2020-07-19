@@ -45,13 +45,15 @@ module.exports = {
     sendTokenResponse(user, 200, res, req);
   },
 
-  logout(req, res, next) {
+  async logout(req, res, next) {
     res.cookie('token', 'none', {
       expires: new Date(Date.now + 10 * 1000),
       httpOnly: true,
     });
 
-    res.json({
+    req.user = {};
+
+    res.status(200).json({
       success: true,
       data: {},
     });
