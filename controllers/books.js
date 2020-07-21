@@ -168,7 +168,7 @@ module.exports = {
   // @desc      Create Book author
   // @route     POST /api/v1/books/authors
   // @access    Private
-  async bookAuthor(req, res, next) {
+  async addBookAuthor(req, res, next) {
     const { book_id, author_id } = req.body;
 
     if (!book_id || !author_id) {
@@ -202,7 +202,7 @@ module.exports = {
   },
 
   // @desc      Get all book author
-  // @route     POST /api/v1/books/authors
+  // @route     GET /api/v1/books/authors
   // @access    Private
   async getBookAuthors(req, res, next) {
     const query = `
@@ -224,12 +224,97 @@ module.exports = {
   // @route     DELETE /api/v1/books/authors/:book_id/:author_id
   // @access    Private
   async deleteBookAuthor(req, res, next) {
+    const { book_id, author_id } = req.params;
+
+    const userId = req.user.user_id;
+
+    const queryUserId = 'SELECT * FROM reviews WHERE review_id = $1';
+    const { rows: userIdRow } = await pool.query(queryUserId, [reviewId]);
+
+    if (userIdRow[0].user_id !== userId) {
+      return errorResponse('Invalid Credentials', 403, res);
+    }
+
     const query = `
     DELETE FROM book_authors 
     WHERE book_id = $1 AND author_id = $2`;
 
-    const { book_id, author_id } = req.params;
     await pool.query(query, [book_id, author_id]);
+
+    res.json({
+      success: true,
+      data: {},
+    });
+  },
+
+  // @desc      Add book genre
+  // @route     POST /api/v1/books/genres
+  // @access    Private
+  async addBookGenre(req, res, next) {
+    const { book_id, genre_id } = req.body;
+
+    if (!book_id || !genre_id) {
+      return errorResponse('Please provide a book and author', 400, res);
+    }
+
+    const queryStr = `
+    SELECT books.book_id, genres.genre_id
+    FROM book_genres
+    JOIN books
+        ON books.book_id = book_genres.book_id
+    JOIN genres
+        ON genres.genre_id = book_genres.genre_id
+      `;
+
+    const { rows: bookGenresId } = await pool.query(queryStr);
+
+    for (const prop in bookGenresId) {
+      // Get id each column
+      const { book_id, genre_id } = bookGenresId[prop];
+      if (book_id === book_id && genre_id === genre_id) {
+        return errorResponse('The book has same owner', 400, res);
+      }
+    }
+
+    const query = `INSERT INTO book_genres (book_id, genre_id) VALUES ($1, $2) RETURNING *`;
+    const { rows } = await pool.query(query, [book_id, genre_id]);
+
+    res.status(201).json({
+      success: true,
+      data: rows[0],
+    });
+  },
+
+  // @desc      Get all book genres
+  // @route     GET /api/v1/books/genres
+  // @access    Private
+  async getBookGenres(req, res, next) {
+    const query = `
+    SELECT *
+    FROM book_genres
+    JOIN books 
+        ON books.book_id = book_genres.book_id
+    JOIN genres 
+        ON genres.genre_id = book_genres.genre_id`;
+
+    const { rows } = await pool.query(query);
+
+    res.json({
+      success: true,
+      data: rows,
+    });
+  },
+
+  // @desc      Delete book genre
+  // @route     DELETE /api/v1/books/genres/:book_id/:genre_id
+  // @access    Private
+  async deleteBookGenre(req, res, next) {
+    const query = `
+    DELETE FROM book_genres
+    WHERE book_id = $1 AND genre_id = $2`;
+
+    const { book_id, genre_id } = req.params;
+    await pool.query(query, [book_id, genre_id]);
 
     res.json({
       success: true,

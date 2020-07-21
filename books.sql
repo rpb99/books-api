@@ -20,6 +20,7 @@ CREATE TABLE books (
     total_pages VARCHAR(50) NOT NULL,
     isbn VARCHAR(15) NOT NULL,
     user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
+    review_id INT REFERENCES reviews(review_id) ON DELETE CASCADE,
     published_date TIMESTAMP,
 );
 
@@ -28,11 +29,13 @@ INSERT INTO
 VALUES 
     ('My Adventure','once upon a time there is a young girl live with her grandma.', '', 256, '123-456-789-00', (SELECT NOW()), 7);
 
-CREATE TABLE rating (
-    rating_id SERIAL PRIMARY KEY,
-    rating NUMERIC(2, 1)
+CREATE TABLE reviews (
+    review_id SERIAL PRIMARY KEY,
+    rating INT NOT NULL,
+    body TEXT,
+    created_at TIMESTAMP,
     book_id INT REFERENCES books(book_id) ON DELETE CASCADE,
-    user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
+    user_id INT REFERENCES users(user_id) ON DELETE CASCADE
 );
 
 CREATE TABLE authors (
@@ -57,8 +60,7 @@ CREATE TABLE genres (
 
 CREATE TABLE book_genres (
     book_id INT REFERENCES books(book_id) ON DELETE CASCADE,
-    genre_id INT REFERENCES genres(genre_id) ON DELETE CASCADE,
-    PRIMARY KEY (book_id, genre_id)
+    genre_id INT REFERENCES genres(genre_id) ON DELETE CASCADE
 );
 
 

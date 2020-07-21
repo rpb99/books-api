@@ -5,32 +5,50 @@ const { protect, authorize } = require('../middleware/auth');
 const {
   getBooks,
   getBook,
+  getBookAuthors,
+  getBookGenres,
   addBook,
+  addBookAuthor,
+  addBookGenre,
   updateBook,
   deleteBook,
-  bookAuthor,
   deleteBookAuthor,
-  getBookAuthors,
+  deleteBookGenre,
 } = require('../controllers/books');
 
+// Route book genres
 router
-  .route('/authors/:book_id/:author_id')
-  .get(asyncHandler(deleteBookAuthor))
+  .route('/genres/:book_id/:genre_id')
+  .delete(asyncHandler(deleteBookGenre));
+
+router
+  .route('/genres')
+  .get(asyncHandler(getBookGenres))
   .post(
     asyncHandler(protect),
     authorize('publisher', 'admin'),
-    asyncHandler(bookAuthor)
+    asyncHandler(addBookGenre)
   );
 
+// Route book authors
 router
   .route('/authors')
   .get(asyncHandler(getBookAuthors))
   .post(
     asyncHandler(protect),
     authorize('publisher', 'admin'),
-    asyncHandler(bookAuthor)
+    asyncHandler(addBookAuthor)
   );
 
+router
+  .route('/authors/:book_id/:author_id')
+  .delete(
+    asyncHandler(protect),
+    authorize('publisher', 'admin'),
+    asyncHandler(deleteBookAuthor)
+  );
+
+// Route books
 router
   .route('/')
   .get(asyncHandler(getBooks))

@@ -11,6 +11,7 @@ const auth = require('./routes/auth');
 const authors = require('./routes/authors');
 const books = require('./routes/books');
 const genres = require('./routes/genres');
+const reviews = require('./routes/reviews');
 
 const app = express();
 
@@ -29,5 +30,6 @@ app.use('/api/v1/auth', auth);
 app.use('/api/v1/authors', authors);
 app.use('/api/v1/books', books);
 app.use('/api/v1/genres', genres);
+app.use('/api/v1/books/:bookId/reviews', reviews);
 
 module.exports = app;
