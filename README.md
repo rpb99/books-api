@@ -3,7 +3,7 @@ provide books api backend node.js + postgresql
 
 !! on development.
 
-# Surf Shop
+# Books API
 
 - Set up
 ```HTML
